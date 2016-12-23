@@ -11,10 +11,10 @@ class I2conClient {
     void recv(void *buf, size_t len);
 
     public:
-        I2conClient(uint8_t bus);
+        I2conClient();
         ~I2conClient();
 
-        void connect(const std::string &ip);
+        void connect(const std::string &ip, uint8_t bus);
         void disconnect();
 
         uint8_t read8(uint16_t adr, uint8_t reg);

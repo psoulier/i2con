@@ -9,7 +9,7 @@
 
 #include "i2conclient.hpp"
 
-I2conClient::I2conClient(uint8_t bus) : bus(bus), socket_fd(-1) {
+I2conClient::I2conClient() : socket_fd(-1) {
 }
 
 I2conClient::~I2conClient() {
@@ -25,10 +25,15 @@ I2conClient::~I2conClient() {
  * @param host: Host to connect to (IP address or host name)
  * @param i2c_bus: I2C bus to connect to.
  */
-void I2conClient::connect(const std::string &ip) {
+void I2conClient::connect(const std::string &ip, uint8_t bus) {
     struct addrinfo hints;
     struct addrinfo *server_info;
 
+    if (socket_fd != -1) {
+        throw I2conException("Already connected");
+    }
+
+    this->bus = bus;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -54,7 +59,6 @@ void I2conClient::connect(const std::string &ip) {
     }
 
     freeaddrinfo(server_info);
-    printf("Connected!\n");
 }
 
 /*

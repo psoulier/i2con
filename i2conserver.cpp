@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 /*
  * This include needed to be updated for my Pi by installing the libi2c-dev package with
@@ -23,13 +25,20 @@
 
 std::atomic_bool    quit(false);
 
-void sig_handler(int) {
+void handle_sigint(int sig) {
     quit = true;
 }
 
+void handle_sigchld(int sig) {
+    int saved_errno = errno;
 
+    while (waitpid((pid_t)(-1), 0, WNOHANG) > 0) {
+    }
+
+    errno = saved_errno;
+}
 /*
- * Setup signal handler for server.
+ * Setup signal handlers for server.
  *
  * The server just runs forever; waiting for connections.  The user can stop the server
  * with CTRL-C.  This handles the SIGINT by closing the socket (to get the "accept" to
@@ -40,12 +49,16 @@ int i2con_server_sig_init() {
     int     err;
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = sig_handler;
+    sa.sa_handler = handle_sigint;
     sigfillset(&sa.sa_mask);
     err = sigaction(SIGINT, &sa, nullptr);
 
+    sa.sa_flags = SA_RESTART;
+    sa.sa_handler = handle_sigchld;
+    err |= sigaction(SIGCHLD, &sa, nullptr);
+
     if (err) {
-        fprintf(stderr, "i2con_server: failed to install signal handler.\n");
+        fprintf(stderr, "i2con_server: failed to install signal handler(s).\n");
     }
 
     return err;
@@ -267,8 +280,13 @@ int main() {
         int                     client_socket_fd;
         char                    client_str[INET6_ADDRSTRLEN];
         socklen_t               sin_size = sizeof(client_addr);
+        pid_t                   pid;
 
+        printf("i2con_server: Waiting for connection...\n");
         client_socket_fd = accept(socket_fd, (struct sockaddr*)&client_addr, &sin_size);
+        if (client_socket_fd < 0) {
+            perror("OMG!!!\n");
+        }
 
         /*
          * Get the string version of the client address.  This is just for informational
@@ -283,9 +301,31 @@ int main() {
             inet_ntop(client_addr.ss_family, &sa->sin6_addr, client_str, INET6_ADDRSTRLEN);
         }
 
-        printf("Connected to %s\n", client_str);
-        i2con_server_process(client_socket_fd);
-        printf("Disconnected from %s\n", client_str);
+        pid = fork();
+        if (pid == 0) {
+            /*
+             * Child process
+             */
+            close(socket_fd);
+            printf("Connected to %s\n", client_str);
+            i2con_server_process(client_socket_fd);
+            printf("Disconnected from %s\n", client_str);
+
+            return 0;
+        }
+        else if (pid < 0){
+            /*
+             * The fork call failed.  Close the client socket since no process was created
+             * to service requests.
+             */
+            close(client_socket_fd);
+        }
+        else {
+            /*
+             * Still in parent process; close client socket (not used by parent).
+             */
+            close(client_socket_fd);
+        }
     }
 
     close(socket_fd);
