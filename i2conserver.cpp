@@ -225,12 +225,12 @@ void i2con_server_process(int client_socket) {
                 case I2CON_CMD_RD16:
                     res = i2c_smbus_read_word_data(i2c_fd, i2cmd.reg);
                     i2cmd.sts = (res >= 0) ? I2CON_STS_OK : I2CON_STS_IOERR;
-                    i2cmd.w = (uint16_t)res;
+                    i2cmd.w = ntohs((uint16_t)res);
                     i2con_send(client_socket, &i2cmd, sizeof(i2cmd));
                     break ;
 
                 case I2CON_CMD_WR16:
-                    res = i2c_smbus_write_word_data(i2c_fd, i2cmd.reg, i2cmd.w);
+                    res = i2c_smbus_write_word_data(i2c_fd, i2cmd.reg, ntohs(i2cmd.w));
                     i2cmd.sts = (res >= 0) ? I2CON_STS_OK : I2CON_STS_IOERR;
                     i2con_send(client_socket, &i2cmd, sizeof(i2cmd));
                     break ;
