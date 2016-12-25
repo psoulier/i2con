@@ -4,7 +4,9 @@ requests over the network to a device that has an I2C bus.  The server is a linu
 intended for a Raspberry Pi platform.  This has only been tested on a Pi 2 B+.
 
 Currently, only byte (8-bit) and word (16-bit) I2C read/writes are supported by the server.  The
-protocol implemented by the server allows for multi-byte transfers, but this isn't implemented.
+protocol implemented by the server allows for multi-byte transfers, but this isn't implemented. 
+I2con handles byte ordering for 2-byte read/writes; for larger transfers using a buffer (which is 
+not implemented), the client must ensure proper byte ordering for the target I2C device.
 
 **Disclaimer:** This code is really just for reference purposes and most likely has bugs.  
 
